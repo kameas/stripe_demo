@@ -33,14 +33,16 @@ app.post('/charge', async (req, res) => {
     const amount = 7000;
     console.log(req.body);
 
-    const {stripeEmail, stripeToken, stripeTokenType} = req.body;
+    const {
+        stripeEmail,
+        stripeToken,
+        stripeTokenType
+    } = req.body;
 
-    const customer = await stripe.customers.create(
-        {
-            email: stripeEmail,
-            source: stripeToken,
-        }
-    );
+    const customer = await stripe.customers.create({
+        email: stripeEmail,
+        source: stripeToken,
+    });
 
     await stripe.charges.create({
         amount,
