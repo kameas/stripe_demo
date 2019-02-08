@@ -1,0 +1,47 @@
+<form>
+        <input type="text" class="number" placeholder="Номер" value="4444444444444448">
+        <input type="text" class="expiry_month" placeholder="Месяц" value="12">
+        <input type="text" class="expiry_year" placeholder="Год" value="22">
+        <input type="text" class="cvc" placeholder="CVC" value="123">
+        <input type="submit" value="Отправить">
+</form>
+
+<script>
+    const checkout = YandexCheckout("{{shopId}}");
+
+    function tokenize() {
+
+        checkout.tokenize({
+            number: document.querySelector('.number').value,
+            cvc: document.querySelector('.cvc').value,
+            month: document.querySelector('.expiry_month').value,
+            year: document.querySelector('.expiry_year').value
+        }).then(res => {
+            if (res.status === 'success') {
+                const { paymentToken } = res.data.response;
+
+                return paymentToken;
+            }
+        }).then((token) => {
+
+            fetch('/yandex', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    token
+                })
+            })
+        })
+    }
+
+    document.querySelector('form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var form = document.querySelector('form');
+
+        tokenize();
+        // stripe.createToken(card).then(setOutcome);
+    });
+</script>

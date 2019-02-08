@@ -6,49 +6,39 @@ const exphbs = require('express-handlebars');
 
 const app = express();
 
-// handlebars middleware
 app.engine('handlebars', exphbs({
     defaultLayout: 'main'
 }));
 app.set('view engine', 'handlebars');
 
-// body parser middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
-    extended: false
+    extended: true
 }));
 
-// set static folder
 app.use(express.static(`${__dirname}/public`));
 
-// index route
 app.get('/', (req, res) => {
     res.render('index', {
-        stripePubKey: keys.stripePubKey
+        stripePubKey: keys.stripePubKey // прокидываем ключ во вьюху
     });
 });
 
-// charge route
-app.post('/charge', async (req, res) => {
-    const amount = 7000;
-    console.log(req.body);
+app.get('/success', (req, res) => {
+    res.render('success');
+});
 
+app.post('/3dcharge', async(req,res) => {
     const {
-        stripeEmail,
-        stripeToken,
-        stripeTokenType
+        source // забираем source id
     } = req.body;
 
-    const customer = await stripe.customers.create({
-        email: stripeEmail,
-        source: stripeToken,
-    });
 
-    await stripe.charges.create({
-        amount,
-        description: 'Buy ticket to "event name"',
-        currency: 'usd',
-        customer: customer.id
+    await stripe.charges.create({ // отправляем данные в stripe
+        amount: 2500,
+        description: '3d secure payment',
+        currency: 'eur',
+        source
     })
 
     res.render('success');
