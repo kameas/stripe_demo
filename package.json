@@ -4,7 +4,8 @@
   "description": "Test stripe app",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "yandex": "node yandex.js"
   },
   "author": "",
   "license": "ISC",
@@ -12,6 +13,8 @@
     "body-parser": "^1.18.3",
     "express": "^4.16.4",
     "express-handlebars": "^3.0.0",
-    "stripe": "^6.12.1"
+    "stripe": "^6.12.1",
+    "yandex-checkout": "^1.0.12",
+    "yandex-money-sdk": "^0.1.7"
   }
 }

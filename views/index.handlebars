@@ -1,12 +1,139 @@
-body
-<form action="/charge" method="POST">
-  <script
-    src="https://checkout.stripe.com/checkout.js" class="stripe-button"
-    data-key="{{stripePubKey}}"
-    data-amount="7000"
-    data-name="Ticket"
-    data-description="Ticket to event name"
-    data-image="https://stripe.com/img/documentation/checkout/marketplace.png"
-    data-locale="auto">
-  </script>
+<div>
+  3d secure: 4000000000003063
+  <br>
+  regular: 4242424242424242
+</div>
+<form>
+  <div class="group">
+    <label>
+      <span>Card</span>
+      <div id="card-element" class="field"></div>
+    </label>
+  </div>
+  <button type="submit">Pay $25</button>
+  <div class="outcome">
+    <div class="error"></div>
+    <div class="success">
+      Success! Your Stripe token is <span class="token"></span>
+    </div>
+  </div>
 </form>
+
+<script>
+
+  var stripe = Stripe("{{stripePubKey}}"); // инициализация
+  var elements = stripe.elements();
+
+  var searchParams = (new URL(document.location)).searchParams; // подготавливаем объект для того что бы забрать гет-параметры из строки
+  var CLIENT_SECRET = searchParams.get('client_secret'); // client_secret и source будут в гет-параметрах после того как мы вернулись со страницы эквайринга
+  var SOURCE_ID = searchParams.get('source');
+
+  if (CLIENT_SECRET && SOURCE_ID) {
+    pollForSourceStatus() // #3 если есть гет-параметры - проверяем статус оплаты
+  }
+
+  var card = elements.create('card', {
+    style: {
+      base: {
+        iconColor: '#666EE8',
+        color: '#31325F',
+        lineHeight: '40px',
+        fontWeight: 300,
+        fontFamily: 'Helvetica Neue',
+        fontSize: '15px',
+
+        '::placeholder': {
+          color: '#CFD7E0',
+        },
+      },
+    }
+  });
+  card.mount('#card-element'); // вставляем поля для ввода данных карты на страницу
+
+
+  document.querySelector('form').addEventListener('submit', function (e) { // перехватываем отправку формы
+    e.preventDefault();
+    var form = document.querySelector('form');
+
+    stripe.createSource(card).then(setOutcome); // #1 отправляем source в функцию-обработчик
+  });
+
+  var MAX_POLL_COUNT = 10; // кол-во запросов для проверки статуса оплаты
+  var pollCount = 0;
+
+  function pollForSourceStatus() {
+    stripe.retrieveSource({
+        id: SOURCE_ID,
+        client_secret: CLIENT_SECRET
+      }).then(function (result) {
+      var source = result.source;
+
+      if (source.status === 'chargeable') { // #4
+        // если оплата совершена - отправляем sourceid на бэк
+        fetch('/3dcharge', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            source: source.id
+          })
+        }).then((data) => {
+          window.location = '/success'
+        })
+      } else if (source.status === 'pending' && pollCount < MAX_POLL_COUNT) {
+        // если оплата еще не прошла - повторяем через 10 секунд
+        pollCount += 1;
+        setTimeout(pollForSourceStatus, 1000);
+      } else {
+        // тут будет обработка ошибок
+      }
+    });
+  }
+
+
+  //pollForSourceStatus();
+
+  function setOutcome(result) {
+    var errorElement = document.querySelector('.error');
+    errorElement.classList.remove('visible');
+
+    if (result.error) {
+      errorElement.textContent = result.error.message;
+      errorElement.classList.add('visible');
+    } else {
+
+      if (result.source && result.source.card) {
+        if (result.source.card.three_d_secure === "required") { // #2 если у карты обязателен 3d secure - создаем еще один source запрос но уже с типом three_d_secure
+          stripe.createSource({
+            type: 'three_d_secure',
+            amount: 2500,
+            currency: "eur",
+            three_d_secure: {
+              card: result.source.id
+            },
+            redirect: {
+              return_url: "http://localhost:5000" // ссылка на которую нас вернут после оплаты
+            }
+          }).then(data => {
+            window.location = data.source.redirect.url // после получения source - переходим на страницу эквайринга
+          })
+        } else { // #2 если 3d secure не обязателен то сразу отправляем данные на бэк
+          fetch('/3dcharge', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              source: result.source.id
+            })
+          }).then((data) => {
+            window.location = '/success'
+          })
+        }
+      }
+    }
+  }
+</script>
